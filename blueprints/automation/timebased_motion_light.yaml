@@ -1,0 +1,163 @@
+blueprint:
+  name: Motion-activated Light timebased-dimming
+  description: Turn on a light when motion is detected, intensity based on time
+  domain: automation
+  source_url: https://github.com/decima/hass-utils/blob/main/blueprints/automation/timebased_motion_light.yaml
+  author: Decima
+  input:
+    motion_entity:
+      name: Motion Sensor
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: motion
+    light_target:
+      name: Light
+      selector:
+        target:
+          entity:
+            domain: light
+    no_motion_wait:
+      name: Wait time
+      description: Time to leave the light on after last motion is detected.
+      default: 120
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds
+    first_time:
+      name: first Time
+      description: start time
+      default: "08:00:00"
+      selector:
+        time: ~
+    first_brightness:
+      name: first Brightness
+      description: brightness
+      default: 80
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+    second_time:
+      name: second Time
+      description: start time
+      default: "14:00:00"
+      selector:
+        time: ~
+    second_brightness:
+      name: second Brightness
+      description: brightness
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+    third_time:
+      name: third Time
+      description: start time
+      default: "20:00:00"
+      selector:
+        time: ~
+    third_brightness:
+      name: third Brightness
+      description: brightness
+      default: 50
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+    fourth_time:
+      name: fourth Time
+      description: start time
+      default: "02:00:00"
+      selector:
+        time: ~
+    fourth_brightness:
+      name: fourth Brightness
+      description: brightness
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: slider
+# If motion is detected within the delay,
+# we restart the script.
+mode: restart
+max_exceeded: silent
+
+trigger:
+  platform: state
+  entity_id: !input motion_entity
+  from: "off"
+  to: "on"
+
+action:
+  - alias: "time-based actions"
+    choose:
+        - conditions:
+            - condition: time
+              after: !input first_time
+              before: !input second_time
+          sequence:
+            - alias: "Turn on the light"
+              service: light.turn_on
+              data:
+                brightness_pct: !input first_brightness
+              target: !input light_target
+
+        - conditions:
+            - condition: time
+              after: !input second_time
+              before: !input third_time
+          sequence:
+            - alias: "Turn on the light"
+              service: light.turn_on
+              data:
+                brightness_pct: !input second_brightness
+              target: !input light_target
+
+        - conditions:
+            - condition: time
+              after: !input third_time
+              before: !input fourth_time
+          sequence:
+            - alias: "Turn on the light"
+              service: light.turn_on
+              data:
+                brightness_pct: !input third_brightness
+              target: !input light_target
+
+        - conditions:
+            - condition: time
+              after: !input fourth_time
+              before: !input first_time
+          sequence:
+            - alias: "Turn on the light"
+              service: light.turn_on
+              data:
+                brightness_pct: !input fourth_brightness
+              target: !input light_target
+
+  - alias: "Wait until there is no motion from device"
+    wait_for_trigger:
+      platform: state
+      entity_id: !input motion_entity
+      from: "on"
+      to: "off"
+
+  - alias: "Wait the number of seconds that has been set"
+    delay: !input no_motion_wait
+
+  - alias: "Turn off the light"
+    service: light.turn_off
+    target: !input light_target
